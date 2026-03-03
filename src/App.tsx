@@ -382,21 +382,30 @@ export default function App() {
           
           {/* Stats Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200/60">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Final Balance</p>
-              <p className={cn("text-3xl font-bold mt-2", isProfitable ? "text-emerald-600" : "text-red-600")}>
+            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200/60 min-w-0">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider truncate">Final Balance</p>
+              <p 
+                className={cn("text-xl md:text-2xl font-bold mt-2 whitespace-nowrap truncate", isProfitable ? "text-emerald-600" : "text-red-600")}
+                title={`$${finalBalance.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+              >
                 ${finalBalance.toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </p>
             </div>
-            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200/60">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Return</p>
-              <p className={cn("text-3xl font-bold mt-2", isProfitable ? "text-emerald-600" : "text-red-600")}>
-                {totalReturn > 0 ? '+' : ''}{totalReturn.toFixed(2)}%
+            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200/60 min-w-0">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider truncate">Total Return</p>
+              <p 
+                className={cn("text-xl md:text-2xl font-bold mt-2 whitespace-nowrap truncate", isProfitable ? "text-emerald-600" : "text-red-600")}
+                title={`${totalReturn > 0 ? '+' : ''}${totalReturn.toLocaleString(undefined, { maximumFractionDigits: 2 })}%`}
+              >
+                {totalReturn > 0 ? '+' : ''}{totalReturn.toLocaleString(undefined, { maximumFractionDigits: 2 })}%
               </p>
             </div>
-            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200/60">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Trades Simulated</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">
+            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200/60 min-w-0">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider truncate">Trades Simulated</p>
+              <p 
+                className="text-xl md:text-2xl font-bold text-gray-900 mt-2 whitespace-nowrap truncate"
+                title={numTrades.toString()}
+              >
                 {numTrades}
               </p>
             </div>
