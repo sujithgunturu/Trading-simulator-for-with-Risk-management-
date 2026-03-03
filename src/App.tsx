@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { GrowthChart } from './components/GrowthChart';
 import { runSimulation, SimulationResult } from './lib/simulation';
-import { RefreshCw, TrendingUp, DollarSign, Percent, Activity, Clock, Settings2, AlertCircle, Target, Wallet } from 'lucide-react';
+import { RefreshCw, TrendingUp, DollarSign, Percent, Activity, Clock, Settings2, AlertCircle, Target, Wallet, Scissors, Layers } from 'lucide-react';
 import { cn } from './lib/utils';
 
 export default function App() {
@@ -16,11 +16,40 @@ export default function App() {
   const [winRate, setWinRate] = useState(50);
   const [riskRewardRatio, setRiskRewardRatio] = useState(2);
   const [numTrades, setNumTrades] = useState(100);
-  const [stopLossPercent, setStopLossPercent] = useState(2); // New state for position sizing
+  const [stopLossPercent, setStopLossPercent] = useState(2);
+
+  // Trimming State
+  const [enableTrimming, setEnableTrimming] = useState(false);
+  const [trim1Target, setTrim1Target] = useState(5); // % Price Move
+  const [trim1Size, setTrim1Size] = useState(30); // % of Position
+  const [trim2Target, setTrim2Target] = useState(10); // % Price Move
+  const [trim2Size, setTrim2Size] = useState(30); // % of Position
+  const [runnerTarget, setRunnerTarget] = useState(20); // % Price Move for remaining
 
   // State for simulation results
   const [data, setData] = useState<SimulationResult[]>([]);
-  const [simulationKey, setSimulationKey] = useState(0); // To force re-render/re-run
+  const [simulationKey, setSimulationKey] = useState(0);
+
+  // Calculate Effective R:R
+  const calculateEffectiveRR = useCallback(() => {
+    if (!enableTrimming) return riskRewardRatio;
+
+    const runnerSize = Math.max(0, 100 - trim1Size - trim2Size);
+    
+    // Weighted Average Return %
+    // (Size% * Target%) + ...
+    const weightedReturnPercent = 
+      ((trim1Size / 100) * trim1Target) +
+      ((trim2Size / 100) * trim2Target) +
+      ((runnerSize / 100) * runnerTarget);
+
+    // Effective R:R = WeightedReturn% / StopLoss%
+    // Avoid division by zero
+    return stopLossPercent > 0 ? weightedReturnPercent / stopLossPercent : 0;
+  }, [enableTrimming, riskRewardRatio, trim1Size, trim1Target, trim2Size, trim2Target, runnerTarget, stopLossPercent]);
+
+  // Derived effective R:R for display and simulation
+  const effectiveRR = calculateEffectiveRR();
 
   // Run simulation
   const handleSimulate = useCallback(() => {
@@ -28,11 +57,11 @@ export default function App() {
       initialBalance,
       riskPercent,
       winRate,
-      riskRewardRatio,
+      riskRewardRatio: effectiveRR, // Use the effective ratio
       numTrades,
     });
     setData(results);
-  }, [initialBalance, riskPercent, winRate, riskRewardRatio, numTrades]);
+  }, [initialBalance, riskPercent, winRate, effectiveRR, numTrades]);
 
   // Run on mount and when inputs change
   useEffect(() => {
@@ -51,9 +80,9 @@ export default function App() {
 
   // Single Trade Analysis Calculations
   const riskAmount = initialBalance * (riskPercent / 100);
-  const profitAmount = riskAmount * riskRewardRatio;
-  // Position Size = Risk Amount / (Stop Loss % / 100)
+  const profitAmount = riskAmount * effectiveRR;
   const positionSize = stopLossPercent > 0 ? riskAmount / (stopLossPercent / 100) : 0;
+  const runnerSize = Math.max(0, 100 - trim1Size - trim2Size);
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-gray-50 text-gray-900 font-sans overflow-hidden">
@@ -121,7 +150,7 @@ export default function App() {
               />
             </div>
 
-            {/* Stop Loss Distance - Needed for Position Size */}
+            {/* Stop Loss Distance */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                 <Target className="w-4 h-4 text-gray-400" />
@@ -138,7 +167,6 @@ export default function App() {
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">%</span>
               </div>
-              <p className="text-xs text-gray-400">Used to calculate required position size.</p>
             </div>
 
             {/* Win Rate */}
@@ -168,22 +196,118 @@ export default function App() {
               />
             </div>
 
-            {/* Risk to Reward */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-gray-400" />
-                Risk to Reward Ratio (1:X)
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">1:</span>
-                <input
-                  type="number"
-                  value={riskRewardRatio}
-                  onChange={handleInputChange(setRiskRewardRatio)}
-                  step="0.1"
-                  className="w-full pl-8 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all bg-gray-50 focus:bg-white"
-                />
+            {/* Risk to Reward (Conditional) */}
+            {!enableTrimming && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-gray-400" />
+                  Risk to Reward Ratio (1:X)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">1:</span>
+                  <input
+                    type="number"
+                    value={riskRewardRatio}
+                    onChange={handleInputChange(setRiskRewardRatio)}
+                    step="0.1"
+                    className="w-full pl-8 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all bg-gray-50 focus:bg-white"
+                  />
+                </div>
               </div>
+            )}
+
+            {/* Trimming Section */}
+            <div className="border border-gray-200 rounded-xl overflow-hidden">
+              <div className="bg-gray-50 p-4 border-b border-gray-200 flex items-center justify-between">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-900 cursor-pointer select-none">
+                  <input 
+                    type="checkbox" 
+                    checked={enableTrimming} 
+                    onChange={(e) => setEnableTrimming(e.target.checked)}
+                    className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 border-gray-300"
+                  />
+                  <Scissors className="w-4 h-4 text-gray-500" />
+                  Enable Trimming / Scaling
+                </label>
+              </div>
+              
+              {enableTrimming && (
+                <div className="p-4 space-y-4 bg-white">
+                  {/* Trim 1 */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-gray-500 uppercase">First Trim</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block">Target (% Move)</label>
+                        <input
+                          type="number"
+                          value={trim1Target}
+                          onChange={handleInputChange(setTrim1Target)}
+                          className="w-full px-2 py-1.5 border border-gray-200 rounded text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block">Size (% Pos)</label>
+                        <input
+                          type="number"
+                          value={trim1Size}
+                          onChange={handleInputChange(setTrim1Size)}
+                          className="w-full px-2 py-1.5 border border-gray-200 rounded text-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Trim 2 */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-gray-500 uppercase">Second Trim</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block">Target (% Move)</label>
+                        <input
+                          type="number"
+                          value={trim2Target}
+                          onChange={handleInputChange(setTrim2Target)}
+                          className="w-full px-2 py-1.5 border border-gray-200 rounded text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block">Size (% Pos)</label>
+                        <input
+                          type="number"
+                          value={trim2Size}
+                          onChange={handleInputChange(setTrim2Size)}
+                          className="w-full px-2 py-1.5 border border-gray-200 rounded text-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Runners */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-gray-500 uppercase flex justify-between">
+                      <span>Runners</span>
+                      <span className="text-emerald-600">{runnerSize}% Remaining</span>
+                    </p>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">Exit Target (% Move)</label>
+                      <input
+                        type="number"
+                        value={runnerTarget}
+                        onChange={handleInputChange(setRunnerTarget)}
+                        className="w-full px-2 py-1.5 border border-gray-200 rounded text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-gray-100">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-600">Effective R:R</span>
+                      <span className="font-bold text-emerald-600">1:{effectiveRR.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Number of Trades */}
@@ -211,7 +335,7 @@ export default function App() {
               
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Potential Profit</span>
+                  <span className="text-gray-600">Potential Profit (Avg)</span>
                   <span className="font-semibold text-emerald-600">
                     +${profitAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                   </span>
@@ -228,6 +352,11 @@ export default function App() {
                     ${positionSize.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                   </span>
                 </div>
+                {enableTrimming && (
+                  <div className="pt-2 border-t border-gray-200 text-xs text-gray-500">
+                    <p>Based on hitting all trim targets.</p>
+                  </div>
+                )}
               </div>
             </div>
 
