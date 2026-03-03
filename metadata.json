@@ -1,0 +1,5 @@
+{
+  "name": "Trading Growth Simulator",
+  "description": "Visualize trading account growth based on risk, win rate, and reward ratio.",
+  "requestFramePermissions": []
+}
